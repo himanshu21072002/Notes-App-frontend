@@ -1,4 +1,7 @@
+import 'dart:convert';
+
 import 'package:flutter/material.dart';
+import 'package:flutter_quill/flutter_quill.dart' hide Text;
 import 'package:notes_app/add_new_note.dart';
 import 'package:notes_app/modules/note.dart';
 import 'package:notes_app/providers/note_provider.dart';
@@ -14,6 +17,7 @@ class HomePage extends StatefulWidget {
 class _HomePageState extends State<HomePage> {
   @override
   Widget build(BuildContext context) {
+    FocusScope.of(context).unfocus();
     NotesProvider notesProvider = Provider.of<NotesProvider>(context);
     return Scaffold(
       appBar: AppBar(
@@ -27,6 +31,11 @@ class _HomePageState extends State<HomePage> {
           itemCount: notesProvider.notes.length,
           itemBuilder: (context, index) {
             Note currentNote = notesProvider.notes[index];
+            var myJSON = jsonDecode(currentNote.content!);
+            final _controller = QuillController(
+              document: Document.fromJson(myJSON),
+              selection: TextSelection.collapsed(offset: 0),
+            );
             return GestureDetector(
               onTap: () {
                 Navigator.push(
@@ -46,28 +55,28 @@ class _HomePageState extends State<HomePage> {
                 decoration: BoxDecoration(
                     borderRadius: BorderRadius.circular(10),
                     border: Border.all(color: Colors.grey, width: 2)),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      currentNote.title!,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(
-                        fontSize: 20,
-                        fontWeight: FontWeight.bold,
+                child: SingleChildScrollView(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        currentNote.title!,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(
+                          fontSize: 20,
+                          fontWeight: FontWeight.bold,
+                        ),
                       ),
-                    ),
-                    const SizedBox(
-                      height: 5,
-                    ),
-                    Text(
-                      currentNote.content!,
-                      maxLines: 7,
-                      overflow: TextOverflow.ellipsis,
-                      style: TextStyle(color: Colors.grey[700]),
-                    ),
-                  ],
+                      const SizedBox(
+                        height: 5,
+                      ),
+                      QuillEditor.basic(
+                        controller: _controller,
+                        readOnly: true, // true for view only mode
+                      ),
+                    ],
+                  ),
                 ),
               ),
             );

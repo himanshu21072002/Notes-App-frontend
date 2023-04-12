@@ -1,8 +1,11 @@
+import 'dart:convert';
+
 import 'package:flutter/material.dart';
 import 'package:notes_app/modules/note.dart';
 import 'package:notes_app/providers/note_provider.dart';
 import 'package:provider/provider.dart';
 import 'package:uuid/uuid.dart';
+import 'package:flutter_quill/flutter_quill.dart' hide Text;
 
 class AddNewNote extends StatefulWidget {
   final bool isUpdate;
@@ -17,12 +20,13 @@ class AddNewNote extends StatefulWidget {
 class _AddNewNoteState extends State<AddNewNote> {
   TextEditingController titleController = TextEditingController();
   TextEditingController contentController = TextEditingController();
+  QuillController _controller = QuillController.basic();
 
-  void addNewNote() {
+  void addNewNote(String js) {
     Note newNote = Note(
       id: const Uuid().v1(),
       title: titleController.text,
-      content: contentController.text,
+      content: js,
       userid: 'himanshu@gmail.com',
       dateAdded: DateTime.now(),
     );
@@ -30,9 +34,9 @@ class _AddNewNoteState extends State<AddNewNote> {
     Navigator.pop(context);
   }
 
-  void updateNote() {
+  void updateNote(String js) {
     widget.note!.title = titleController.text;
-    widget.note!.content = contentController.text;
+    widget.note!.content = js;
     Provider.of<NotesProvider>(context, listen: false).update(widget.note!);
     Navigator.pop(context);
   }
@@ -42,27 +46,35 @@ class _AddNewNoteState extends State<AddNewNote> {
     super.initState();
     if (widget.isUpdate) {
       titleController.text = widget.note!.title!;
-      contentController.text = widget.note!.content!;
+      var myJSON = jsonDecode(widget.note!.content!);
+      _controller = QuillController(
+        document: Document.fromJson( myJSON),
+        selection: TextSelection.collapsed(offset: 0),
+      );;
     }
   }
-
+  FocusNode _focusNode = FocusNode();
+  bool isTitle = true;
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text("Add New Note"),
+        title: Text("Add New Note"),
         actions: [
           IconButton(
               icon: const Icon(Icons.check),
               onPressed: () {
-                if (titleController.text.isEmpty &&
-                    contentController.text.isEmpty) {
+                if (titleController.text.isEmpty) {
                   Navigator.pop(context);
                 } else {
                   if (widget.isUpdate) {
-                    updateNote();
+                    String js =
+                        jsonEncode(_controller.document.toDelta().toJson());
+                    updateNote(js);
                   } else {
-                    addNewNote();
+                    String js =
+                        jsonEncode(_controller.document.toDelta().toJson());
+                    addNewNote(js);
                   }
                 }
               }),
@@ -71,8 +83,16 @@ class _AddNewNoteState extends State<AddNewNote> {
       ),
       body: Column(
         children: [
+          isTitle==false?Container():QuillToolbar.basic(controller: _controller),
           TextField(
+            onTap: () {
+              setState(() {
+                isTitle = _focusNode.hasFocus;
+                print("is title :   $isTitle");
+              });
+            },
             controller: titleController,
+            focusNode: _focusNode,
             autofocus: (widget.isUpdate == true) ? false : true,
             style: const TextStyle(fontSize: 30, fontWeight: FontWeight.bold),
             decoration: const InputDecoration(
@@ -80,12 +100,15 @@ class _AddNewNoteState extends State<AddNewNote> {
             ),
           ),
           Expanded(
-            child: TextField(
-              controller: contentController,
-              maxLines: null,
-              decoration: const InputDecoration(
-                hintText: 'Note',
-                border: InputBorder.none,
+            child: GestureDetector(
+              onTap: () {
+                setState(() {
+                  isTitle = false;
+                });
+              },
+              child: QuillEditor.basic(
+                controller: _controller,
+                readOnly: false, // true for view only mode
               ),
             ),
           ),
